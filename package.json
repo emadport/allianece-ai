@@ -6,21 +6,31 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "python:install": "cd unet && pip install -r requirements.txt",
+    "python:server": "cd unet && python run_server.py",
+    "python:dev": "cd unet && uvicorn server:app --reload --host 0.0.0.0 --port 8000"
   },
   "dependencies": {
+    "@apollo/client": "^4.0.7",
+    "@apollo/server": "^4.12.2",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.4",
+    "graphql": "^16.11.0",
+    "graphql-tag": "^2.12.6",
+    "next": "16.0.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "next": "16.0.0"
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "16.0.0"
+    "eslint-config-next": "16.0.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

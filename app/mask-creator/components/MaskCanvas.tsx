@@ -1,0 +1,135 @@
+"use client";
+
+import { useRef, useCallback, useState } from "react";
+
+interface MaskCanvasProps {
+  imageUrl: string;
+  onMaskDrawn: (maskDataUrl: string) => void;
+}
+
+export default function MaskCanvas({ imageUrl, onMaskDrawn }: MaskCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [brushColor, setBrushColor] = useState("#FFFFFF");
+  const [brushSize, setBrushSize] = useState(10);
+
+  const startDrawing = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+  }, []);
+
+  const draw = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!isDrawing) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = brushColor;
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.stroke();
+    },
+    [isDrawing, brushSize, brushColor]
+  );
+
+  const stopDrawing = useCallback(() => {
+    setIsDrawing(false);
+  }, []);
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const saveMask = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const maskDataUrl = canvas.toDataURL("image/png");
+    onMaskDrawn(maskDataUrl);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="grid gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800 sm:grid-cols-3">
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            Brush Size: {brushSize}px
+          </label>
+          <input
+            type="range"
+            min="1"
+            max="50"
+            value={brushSize}
+            onChange={(e) => setBrushSize(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            Brush Color
+          </label>
+          <input
+            type="color"
+            value={brushColor}
+            onChange={(e) => setBrushColor(e.target.value)}
+            className="h-10 w-full cursor-pointer rounded"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={clearCanvas}
+            className="rounded bg-zinc-300 px-4 py-2 font-semibold text-zinc-900 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-100"
+          >
+            Clear
+          </button>
+          <button
+            onClick={saveMask}
+            className="rounded bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
+          >
+            Save Mask
+          </button>
+        </div>
+      </div>
+      <div className="relative inline-block">
+        <img
+          src={imageUrl}
+          alt="Mask drawing"
+          className="max-w-full"
+          onLoad={(e) => {
+            const canvas = canvasRef.current;
+            const img = e.currentTarget;
+            if (canvas && img) {
+              canvas.width = img.clientWidth;
+              canvas.height = img.clientHeight;
+            }
+          }}
+        />
+        <canvas
+          ref={canvasRef}
+          className="absolute left-0 top-0 cursor-crosshair"
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+        />
+      </div>
+    </div>
+  );
+}
