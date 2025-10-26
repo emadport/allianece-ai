@@ -47,7 +47,7 @@ export const resolvers = {
     ) => {
       // Mock data - replace with actual database insert
       return {
-        id: Math.random().toString(36).substring(7),
+        id: `item_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         ...input,
         createdAt: new Date().toISOString(),
       };
