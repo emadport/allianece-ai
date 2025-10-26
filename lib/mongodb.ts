@@ -1,12 +1,14 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://emadaskari_db_user:kLnkczzLG9QpgXn6@cluster0.mongodb.net/?retryWrites=true&w=majority';
-const dbName = 'emadaskari_db';
+const uri =
+  process.env.MONGODB_URI ||
+  "mongodb+srv://emadaskari_db_user:kLnkczzLG9QpgXn6@cluster0.mongodb.net/?retryWrites=true&w=majority";
+const dbName = "emadaskari_db";
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   // In development mode, use a global variable so that the value
   // is preserved across module reloads caused by HMR (Hot Module Replacement).
   if (!(global as any)._mongoClientPromise) {
@@ -26,4 +28,3 @@ export async function getDatabase() {
 }
 
 export default clientPromise;
-
