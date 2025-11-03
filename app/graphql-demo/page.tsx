@@ -1,7 +1,7 @@
 "use client";
 
+import { useMutation, useQuery } from "@apollo/client/react";
 import { ApolloWrapper } from "../../components/apollo-wrapper";
-import { useQuery, useMutation } from "@apollo/client";
 import {
   GET_HELLO,
   GET_HEALTH,
@@ -10,17 +10,46 @@ import {
 } from "../graphql/queries";
 import { useState } from "react";
 
+// Type definitions for query responses
+interface HelloData {
+  hello: string;
+}
+
+interface HealthData {
+  health: {
+    status: string;
+    timestamp: string;
+    services: {
+      pythonAPI: string;
+      database: string;
+    };
+  };
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
+interface UsersData {
+  getUsers: User[];
+}
+
 function GraphQLDemoContent() {
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
 
-  const { data: helloData, loading: helloLoading } = useQuery(GET_HELLO);
-  const { data: healthData, loading: healthLoading } = useQuery(GET_HEALTH);
+  const { data: helloData, loading: helloLoading } =
+    useQuery<HelloData>(GET_HELLO);
+  const { data: healthData, loading: healthLoading } =
+    useQuery<HealthData>(GET_HEALTH);
   const {
     data: usersData,
     loading: usersLoading,
     refetch: refetchUsers,
-  } = useQuery(GET_USERS);
+  } = useQuery<UsersData>(GET_USERS);
 
   const [createUser, { loading: createLoading }] = useMutation(CREATE_USER, {
     onCompleted: () => {

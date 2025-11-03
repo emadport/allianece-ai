@@ -2,7 +2,7 @@ import { MongoClient } from "mongodb";
 
 const uri =
   process.env.MONGODB_URI ||
-  "mongodb+srv://emadaskari_db_user:kLnkczzLG9QpgXn6@cluster0.mongodb.net/?retryWrites=true&w=majority";
+  "mongodb+srv://emadaskari_db_user:emadi@cluster0.mongodb.net/?retryWrites=true&w=majority";
 const dbName = "emadaskari_db";
 
 let client: MongoClient;

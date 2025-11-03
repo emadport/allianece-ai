@@ -13,22 +13,41 @@ export default function MaskCanvas({ imageUrl, onMaskDrawn }: MaskCanvasProps) {
   const [brushColor, setBrushColor] = useState("#FFFFFF");
   const [brushSize, setBrushSize] = useState(10);
 
-  const startDrawing = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // NEW STATE for Straight Line functionality
+  const [isStraightMode, setIsStraightMode] = useState(false);
+  const [straightLineStart, setStraightLineStart] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  const startDrawing = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-  }, []);
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Logic to handle both modes on mouse down
+      if (isStraightMode) {
+        setStraightLineStart({ x, y }); // Just record the start point
+      } else {
+        setIsDrawing(true); // Start continuous drawing
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      }
+    },
+    [isStraightMode]
+  );
 
   const draw = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!isDrawing) return;
+      // Only execute for Freehand Mode
+      if (!isDrawing || isStraightMode) return;
+
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -42,12 +61,43 @@ export default function MaskCanvas({ imageUrl, onMaskDrawn }: MaskCanvasProps) {
       ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
       ctx.stroke();
     },
-    [isDrawing, brushSize, brushColor]
+    [isDrawing, brushSize, brushColor, isStraightMode]
   );
 
-  const stopDrawing = useCallback(() => {
-    setIsDrawing(false);
-  }, []);
+  const stopDrawing = useCallback(
+    (e?: React.MouseEvent<HTMLCanvasElement>) => {
+      // Check if event object exists to confirm it was a mouseUp/mouseLeave
+      const isMouseUpOrLeave = !!e;
+
+      // Logic to handle Straight Line Mode on mouse up/leave
+      if (isStraightMode && straightLineStart && isMouseUpOrLeave) {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        // Calculate end point (e is guaranteed to be present here)
+        const endX = e.clientX - rect.left;
+        const endY = e.clientY - rect.top;
+
+        // Draw the single straight line segment
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = brushColor;
+
+        ctx.beginPath();
+        ctx.moveTo(straightLineStart.x, straightLineStart.y);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        setStraightLineStart(null); // Reset start point
+      }
+
+      setIsDrawing(false); // Stop continuous drawing
+    },
+    [isStraightMode, straightLineStart, brushSize, brushColor]
+  );
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -67,7 +117,7 @@ export default function MaskCanvas({ imageUrl, onMaskDrawn }: MaskCanvasProps) {
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="grid gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800 sm:grid-cols-3">
+      <div className="grid gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800 sm:grid-cols-4">
         <div>
           <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
             Brush Size: {brushSize}px
@@ -92,6 +142,24 @@ export default function MaskCanvas({ imageUrl, onMaskDrawn }: MaskCanvasProps) {
             className="h-10 w-full cursor-pointer rounded"
           />
         </div>
+
+        {/* NEW MODE TOGGLE BUTTON */}
+        <div className="flex flex-col gap-2">
+          <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            Drawing Mode
+          </label>
+          <button
+            onClick={() => setIsStraightMode((prev) => !prev)}
+            className={`rounded px-4 py-2 font-semibold transition ${
+              isStraightMode
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-zinc-300 text-zinc-900 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-100"
+            }`}
+          >
+            {isStraightMode ? "Straight Line" : "Freehand"}
+          </button>
+        </div>
+
         <div className="flex flex-col gap-2">
           <button
             onClick={clearCanvas}
@@ -127,7 +195,7 @@ export default function MaskCanvas({ imageUrl, onMaskDrawn }: MaskCanvasProps) {
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
+          onMouseLeave={stopDrawing} // Use stopDrawing on mouse leave as well
         />
       </div>
     </div>
