@@ -25,18 +25,147 @@ export default function ParkingAreaDemo() {
     northEast: { lat: number; lng: number };
     southWest: { lat: number; lng: number };
   } | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setResult(null);
-      setPolygons([]);
+  const compressImage = (
+    file: File
+  ): Promise<{ dataUrl: string; blob: Blob }> => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
+      reader.onload = (e) => {
+        const img = document.createElement("img");
+        img.onload = () => {
+          // Calculate new dimensions (max 800px on longest side)
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = (height * MAX_SIZE) / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = (width * MAX_SIZE) / height;
+              height = MAX_SIZE;
+            }
+          }
+
+          // Create canvas and resize
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+
+          if (!ctx) {
+            reject(new Error("Failed to get canvas context"));
+            return;
+          }
+
+          // Draw resized image
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to blob (JPEG with 85% quality for smaller size)
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+                resolve({ dataUrl, blob });
+              } else {
+                reject(new Error("Failed to create blob"));
+              }
+            },
+            "image/jpeg",
+            0.85
+          );
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = e.target?.result as string;
       };
-      reader.readAsDataURL(selectedFile);
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    // Check for HEIC format (iPhone photos)
+    const fileExtension = selectedFile.name.toLowerCase().split(".").pop();
+    if (fileExtension === "heic" || fileExtension === "heif") {
+      alert(
+        '⚠️ HEIC format detected. Please convert to JPG first:\n\n1. Open photo on iPhone\n2. Share → Save to Files\n3. Choose "JPEG" format\n4. Upload the converted file'
+      );
+      e.target.value = "";
+      return;
+    }
+
+    // Check file size (warn if > 10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      const proceed = confirm(
+        "⚠️ Large file detected (" +
+          Math.round(selectedFile.size / 1024 / 1024) +
+          "MB). This may take a moment to process. Continue?"
+      );
+      if (!proceed) {
+        e.target.value = "";
+        return;
+      }
+    }
+
+    setIsCompressing(true);
+    setResult(null);
+    setPolygons([]);
+    setError(null);
+
+    try {
+      // Add timeout for compression (30 seconds)
+      const compressionPromise = compressImage(selectedFile);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Compression timeout")), 30000)
+      );
+
+      const { dataUrl, blob } = await Promise.race([
+        compressionPromise,
+        timeoutPromise,
+      ]);
+
+      // Create a new File object from the compressed blob
+      const compressedFile = new File(
+        [blob],
+        selectedFile.name.replace(/\.\w+$/, ".jpg"),
+        { type: "image/jpeg" }
+      );
+
+      setFile(compressedFile);
+      setPreview(dataUrl);
+    } catch (err) {
+      console.error("Failed to compress image:", err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+      if (errorMessage.includes("timeout")) {
+        alert(
+          "⚠️ Image processing timed out. Your photo might be too large. Try:\n\n1. Taking a lower resolution photo\n2. Using a photo editing app to reduce size\n3. Converting to JPG format"
+        );
+        e.target.value = "";
+      } else {
+        alert("⚠️ Could not process image. Using original file (may be slow).");
+        // Fallback to original file
+        setFile(selectedFile);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result as string);
+        };
+        reader.onerror = () => {
+          alert("❌ Failed to read image file. Please try a different photo.");
+          e.target.value = "";
+        };
+        reader.readAsDataURL(selectedFile);
+      }
+    } finally {
+      setIsCompressing(false);
     }
   };
 
@@ -94,10 +223,15 @@ export default function ParkingAreaDemo() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex flex-col gap-4">
+            <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+              <strong>💡 Note:</strong> Images are compressed on upload (max
+              800px) for faster processing.
+            </div>
             <input
               type="file"
               accept="image/*"
               onChange={handleFileChange}
+              disabled={isCompressing}
               className="block w-full text-sm text-zinc-600 dark:text-zinc-400
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-lg file:border-0
@@ -105,14 +239,27 @@ export default function ParkingAreaDemo() {
                 file:bg-zinc-900 file:text-zinc-50
                 hover:file:bg-zinc-800
                 dark:file:bg-zinc-50 dark:file:text-zinc-900
-                dark:hover:file:bg-zinc-100"
+                dark:hover:file:bg-zinc-100
+                disabled:opacity-50 disabled:cursor-not-allowed"
             />
+            {isCompressing && (
+              <div className="rounded-lg bg-blue-50 p-4 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                <div className="flex items-center gap-3">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-800 border-t-transparent dark:border-blue-400"></div>
+                  <span className="font-semibold">
+                    Processing image... This may take a moment for large photos.
+                  </span>
+                </div>
+              </div>
+            )}
             <button
               type="submit"
-              disabled={!file || loading}
+              disabled={!file || loading || isCompressing}
               className="rounded-lg bg-zinc-900 px-6 py-3 font-semibold text-zinc-50 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-100"
             >
-              {loading ? "Processing..." : "Detect Parking Spaces"}
+              {loading
+                ? "Detecting Parking Spaces..."
+                : "Detect Parking Spaces"}
             </button>
           </div>
         </form>
