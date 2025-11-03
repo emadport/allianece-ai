@@ -53,10 +53,11 @@ The system is fully operational and ready to detect parking spaces.
 ## 🎯 All Features Implemented
 
 - ✅ Automatic parking space detection using SAM AutoMaskGenerator
+- ✅ **Optimized configuration**: min_mask_region_area=5000, points_per_side=32
 - ✅ Polygon coordinate extraction for each parking space
 - ✅ **Fixed: Now creates one polygon per parking space (not per point!)**
-- ✅ Area-based filtering to remove tiny noise segments
-- ✅ Color-coded visualization
+- ✅ Area-based filtering (min 1000 pixels) to remove tiny noise segments
+- ✅ Color-coded visualization with parking space outlines
 - ✅ **MapLibre GL map integration** (no API key needed!)
 - ✅ **Interactive polygons overlaid on map**
 - ✅ Parking space counting

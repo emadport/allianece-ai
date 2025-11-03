@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -20,6 +20,14 @@ interface MapComponentProps {
   geoBounds?: GeoBounds | null;
 }
 
+// -----------------------------------------------------------
+// 🚨 NEW INTERFACE FOR DIMENSIONS
+interface ImageDimensions {
+  width: number;
+  height: number;
+}
+// -----------------------------------------------------------
+
 export default function MapComponent({
   imageUrl,
   polygons,
@@ -27,7 +35,12 @@ export default function MapComponent({
 }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const isLoadedRef = useRef(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  // -----------------------------------------------------------
+  // 🚨 NEW STATE FOR IMAGE DIMENSIONS
+  const [imageDimensions, setImageDimensions] =
+    useState<ImageDimensions | null>(null);
+  // -----------------------------------------------------------
 
   // Initialize map only once
   useEffect(() => {
@@ -35,7 +48,6 @@ export default function MapComponent({
 
     console.log("Initializing MapLibre map...");
 
-    // Initialize map with MapLibre (no API key needed)
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: {
@@ -75,28 +87,109 @@ export default function MapComponent({
   // Add parking image and polygons when ready
   useEffect(() => {
     if (!mapRef.current || !imageUrl || !polygons.length) return;
-    if (isLoadedRef.current) return; // Only load once
+    if (isImageLoaded) return; // Image already loaded
 
     const map = mapRef.current;
 
     // If map is already loaded, add content immediately
     if (map.loaded()) {
-      addParkingContent(map, imageUrl, polygons, geoBounds);
-      isLoadedRef.current = true;
+      addParkingContent(map, imageUrl, polygons, geoBounds, setImageDimensions);
     } else {
       // Otherwise wait for map to load
       map.on("load", () => {
-        addParkingContent(map, imageUrl, polygons, geoBounds);
-        isLoadedRef.current = true;
+        addParkingContent(
+          map,
+          imageUrl,
+          polygons,
+          geoBounds,
+          setImageDimensions
+        );
       });
     }
-  }, [imageUrl, polygons, geoBounds]);
+  }, [imageUrl, polygons, isImageLoaded]);
 
+  // Update geoBounds when they change (update image coordinates and zoom)
+  useEffect(() => {
+    if (!mapRef.current || !geoBounds || !isImageLoaded || !imageDimensions) {
+      return;
+    }
+
+    const map = mapRef.current;
+    const { width: imageWidth, height: imageHeight } = imageDimensions;
+
+    // --- 1. Update image coordinates ---
+    const imageSource = map.getSource(
+      "parking-image"
+    ) as maplibregl.ImageSource;
+    if (imageSource) {
+      const imageCoordinates: [
+        [number, number],
+        [number, number],
+        [number, number],
+        [number, number]
+      ] = [
+        [geoBounds.northEast.lng, geoBounds.northEast.lat],
+        [geoBounds.southWest.lng, geoBounds.northEast.lat],
+        [geoBounds.southWest.lng, geoBounds.southWest.lat],
+        [geoBounds.northEast.lng, geoBounds.southWest.lat],
+      ];
+      imageSource.setCoordinates(imageCoordinates);
+      console.log("Updated image coordinates to:", imageCoordinates);
+    }
+
+    // --- 2. Update polygon coordinates (NOW SYNCHRONOUS) ---
+    // 🚨 Removed the asynchronous new Image() block
+    polygons.forEach((polygon, idx) => {
+      const sourceId = `parking-polygon-${idx}`;
+      const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
+
+      if (source) {
+        const coordinates = polygon.points.map(([x, y]: [number, number]) => {
+          const normalizedX = x / imageWidth;
+          const normalizedY = y / imageHeight;
+
+          const lng =
+            geoBounds.southWest.lng +
+            (geoBounds.northEast.lng - geoBounds.southWest.lng) * normalizedX;
+          const lat =
+            geoBounds.southWest.lat +
+            (geoBounds.northEast.lat - geoBounds.southWest.lat) *
+              (1 - normalizedY);
+
+          return [lng, lat];
+        });
+
+        const closedCoordinates = [...coordinates, coordinates[0]];
+
+        // Set new GeoJSON data
+        source.setData({
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [closedCoordinates],
+          },
+          properties: { index: idx },
+        } as any);
+      }
+    });
+
+    // --- 3. Zoom to bounds (EXECUTED AFTER ALL SOURCE DATA IS UPDATED) ---
+    const fitBounds: [[number, number], [number, number]] = [
+      [geoBounds.southWest.lng, geoBounds.southWest.lat],
+      [geoBounds.northEast.lng, geoBounds.northEast.lat],
+    ];
+
+    map.fitBounds(fitBounds, { padding: 50 });
+  }, [geoBounds, polygons, isImageLoaded, imageDimensions]); // 🚨 Added imageDimensions dependency
+
+  // -----------------------------------------------------------
+  // 🚨 UPDATED FUNCTION SIGNATURE
   function addParkingContent(
     map: maplibregl.Map,
     imageUrl: string,
     polygons: Polygon[],
-    geoBounds: GeoBounds | null
+    geoBounds: GeoBounds | null,
+    setImageDimensions: (dims: ImageDimensions) => void // Accepts setter
   ) {
     if (map.getSource("parking-image")) return;
 
@@ -109,6 +202,8 @@ export default function MapComponent({
       const imageWidth = img.width;
       const imageHeight = img.height;
 
+      setImageDimensions({ width: imageWidth, height: imageHeight });
+
       let imageCoordinates: [
         [number, number],
         [number, number],
@@ -119,7 +214,6 @@ export default function MapComponent({
 
       if (geoBounds) {
         // Use real-world coordinates when provided
-        console.log("Using real-world coordinates:", geoBounds);
         imageCoordinates = [
           [geoBounds.northEast.lng, geoBounds.northEast.lat], // top left (NE)
           [geoBounds.southWest.lng, geoBounds.northEast.lat], // top right
@@ -232,12 +326,16 @@ export default function MapComponent({
           },
         });
       });
+
+      // Mark image as loaded
+      setIsImageLoaded(true);
     };
 
     img.onerror = (err) => {
       console.error("Failed to load parking image:", err);
     };
   }
+  // -----------------------------------------------------------
 
   return (
     <div className="relative h-96 w-full overflow-hidden rounded-lg">
