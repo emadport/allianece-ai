@@ -96,12 +96,6 @@ function MaskCreatorContent() {
           formData.append("original", imageFile, "original.png");
         }
 
-        console.log(
-          "Saving with modelType:",
-          currentModelType,
-          "model:",
-          selectedModel
-        );
         const pythonApiUrl =
           process.env.NEXT_PUBLIC_PYTHON_API_URL || "http://localhost:8000";
         const saveResponse = await fetch(
