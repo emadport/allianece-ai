@@ -24,6 +24,10 @@ function MaskCreatorContent() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isTraining, setIsTraining] = useState(false);
+  const [trainingLogs, setTrainingLogs] = useState<string[]>([]);
+  const [trainingStatus, setTrainingStatus] = useState<
+    "running" | "completed" | "error" | null
+  >(null);
   useEffect(() => {
     setImage(null);
     setImageFile(null);
@@ -39,6 +43,44 @@ function MaskCreatorContent() {
       setModelType("haircut");
     }
   }, [selectedModel]);
+
+  // Poll training status when training is active
+  useEffect(() => {
+    if (!isTraining) return;
+
+    const pollStatus = async () => {
+      const pythonApiUrl =
+        process.env.NEXT_PUBLIC_PYTHON_API_URL || "http://localhost:8000";
+      try {
+        const response = await fetch(
+          `${pythonApiUrl}/train/status?model=${selectedModel}&type=${modelType}`
+        );
+        const data = await response.json();
+
+        if (data.success) {
+          setTrainingStatus(data.status);
+          setTrainingLogs(data.logs);
+
+          // If completed or error, stop polling and reset training state
+          if (data.status === "completed") {
+            setIsTraining(false);
+            setTrainingStatus(null);
+          } else if (data.status === "error") {
+            setIsTraining(false);
+            setTrainingStatus(null);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to poll training status:", err);
+      }
+    };
+
+    // Poll immediately, then every 2 seconds
+    pollStatus();
+    const interval = setInterval(pollStatus, 2000);
+
+    return () => clearInterval(interval);
+  }, [isTraining, selectedModel, modelType]);
 
   const handleMaskDrawn = useCallback(
     async (maskDataUrl: string, currentModelType: ModelType) => {
@@ -348,22 +390,36 @@ function MaskCreatorContent() {
                   );
                   const data = await response.json();
                   if (data.success) {
-                    alert("✓ Training started in background!");
+                    // No alert, just let the status polling handle it
                   } else {
                     alert(`Training failed: ${data.error}`);
+                    setIsTraining(false);
                   }
                 } catch (err) {
                   alert("Failed to start training");
-                } finally {
                   setIsTraining(false);
                 }
               }}
               disabled={isTraining}
               className="rounded bg-purple-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isTraining ? "Starting..." : "🚀 Train Model"}
+              {isTraining ? "Training in Progress..." : "🚀 Train Model"}
             </button>
           </div>
+
+          {/* Training Progress */}
+          {isTraining && trainingLogs.length > 0 && (
+            <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
+              <h4 className="mb-2 font-semibold text-purple-900 dark:text-purple-100">
+                Training Progress:
+              </h4>
+              <div className="max-h-64 space-y-1 overflow-y-auto font-mono text-sm text-purple-800 dark:text-purple-200">
+                {trainingLogs.slice(-10).map((log, idx) => (
+                  <div key={idx}>{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Prediction */}

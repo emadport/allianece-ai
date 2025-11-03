@@ -28,9 +28,8 @@
    - Go to Project Settings → Environment Variables
    - Add:
      ```
-     NEXT_PUBLIC_PYTHON_API_URL=https://your-python-backend.railway.app
+     NEXT_PUBLIC_PYTHON_API_URL=https://alliance-ai-python-backend.onrender.com
      ```
-   - Replace with your actual Python backend URL
 
 4. **Redeploy**
    - Vercel will auto-deploy after setting env variables
@@ -108,5 +107,5 @@ NEXT_PUBLIC_PYTHON_API_URL=http://localhost:8000
 
 ### Production URLs
 
-- **Frontend**: `https://your-app.vercel.app`
-- **Backend**: `https://your-backend.railway.app`
+- **Frontend**: `https://allianece-7j5osfaha-emadi65s-projects.vercel.app`
+- **Backend**: `https://alliance-ai-python-backend.onrender.com`
