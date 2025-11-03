@@ -74,6 +74,14 @@ export default function ParkingAreaDemo() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 p-8 dark:bg-black">
       <div className="w-full max-w-6xl space-y-8">
+        <div>
+          <a
+            href="/models"
+            className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          >
+            ← Back to Models
+          </a>
+        </div>
         <div className="text-center">
           <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-100">
             Parking Area Segmentation

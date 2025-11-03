@@ -5,13 +5,13 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import MaskCanvas from "./components/MaskCanvas";
 
-type ModelType = "haircut" | "custom";
+type ModelType = "lineDetection" | "custom";
 
 function MaskCreatorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedModel = searchParams.get("model") || "unet";
-  const urlDetectionType = searchParams.get("type") || "haircut";
+  const urlDetectionType = searchParams.get("type") || "lineDetection";
 
   const [modelType, setModelType] = useState<ModelType>(
     urlDetectionType as ModelType
@@ -40,7 +40,7 @@ function MaskCreatorContent() {
   useEffect(() => {
     // Update model type based on URL parameter
     if (selectedModel === "unet") {
-      setModelType("haircut");
+      setModelType("lineDetection");
     }
   }, [selectedModel]);
 
@@ -203,24 +203,22 @@ function MaskCreatorContent() {
           <div className="grid gap-4 md:grid-cols-2">
             <button
               onClick={() => {
-                console.log("Setting modelType to: haircut");
-                setModelType("haircut");
+                console.log("Setting modelType to: lineDetection");
+                setModelType("lineDetection");
                 router.push(
-                  `/mask-creator?model=${selectedModel}&type=haircut`,
+                  `/mask-creator?model=${selectedModel}&type=lineDetection`,
                   { scroll: false }
                 );
               }}
               className={`rounded-lg border-2 px-6 py-4 font-semibold transition-colors ${
-                modelType === "haircut"
+                modelType === "lineDetection"
                   ? "border-blue-600 bg-blue-50 text-blue-900 dark:border-blue-400 dark:bg-blue-900/20 dark:text-blue-100"
                   : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
               }`}
             >
-              <div className="text-2xl mb-2">✂️</div>
-              <div className="font-bold">Haircut Line Detection</div>
-              <div className="mt-1 text-xs opacity-70">
-                Detects ideal haircut lines on faces
-              </div>
+              <div className="text-2xl mb-2">📈</div>
+              <div className="font-bold">Line Detection</div>
+              <div className="mt-1 text-xs opacity-70">Detects ideal lines</div>
             </button>
             <button
               onClick={() => {
@@ -250,8 +248,8 @@ function MaskCreatorContent() {
           <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm font-semibold text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
             📂 Currently selected:{" "}
             <strong>
-              {modelType === "haircut"
-                ? "Haircut Line Detection"
+              {modelType === "lineDetection"
+                ? "Line Detection"
                 : "Camera Detection"}
             </strong>
             <br />

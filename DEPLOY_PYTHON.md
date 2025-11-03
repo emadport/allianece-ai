@@ -1,6 +1,7 @@
 # Deploying Python Backend (FastAPI + UNet)
 
 ## Option 1: Railway (Recommended - Easiest)
+
 1. Go to https://railway.app
 2. Sign up with GitHub
 3. Click "New Project" → "Deploy from GitHub repo"
@@ -9,8 +10,8 @@
    # In a NEW folder
    mkdir allianceai-backend
    cd allianceai-backend
-   cp ../minconda/miniconda3/envs/haircut-line/*.py .
-   cp ../minconda/miniconda3/envs/haircut-line/requirements.txt .
+   cp ../minconda/miniconda3/envs/lineDetection/*.py .
+   cp ../minconda/miniconda3/envs/lineDetection/requirements.txt .
    git init
    git add .
    git commit -m "Python backend"
@@ -22,6 +23,7 @@
 8. Add to Vercel env: NEXT_PUBLIC_PYTHON_API_URL
 
 ## Option 2: Render
+
 1. Go to https://render.com
 2. Create "Web Service"
 3. Connect GitHub repo
@@ -29,4 +31,5 @@
 5. Start command: uvicorn server:app --host 0.0.0.0 --port $PORT
 
 ## Quick Setup Script
+
 Run this to prepare the backend for deployment:
