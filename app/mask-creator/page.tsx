@@ -110,7 +110,10 @@ function MaskCreatorContent() {
         console.log("Save response:", saveData);
 
         if (saveResponse.ok) {
-          alert("✓ Mask and image saved to disk!");
+          const sizeInfo = saveData.image_size
+            ? ` (optimized to ${saveData.image_size})`
+            : "";
+          alert(`✓ Mask and image saved to disk${sizeInfo}!`);
         }
       } catch (err) {
         console.error("Failed to save mask:", err);
@@ -119,17 +122,91 @@ function MaskCreatorContent() {
     [imageFile]
   );
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<{ dataUrl: string; blob: Blob }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          // Calculate new dimensions (max 800px on longest side)
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = (height * MAX_SIZE) / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = (width * MAX_SIZE) / height;
+              height = MAX_SIZE;
+            }
+          }
+          
+          // Create canvas and resize
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          
+          // Draw resized image
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convert to blob (JPEG with 85% quality for smaller size)
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                resolve({ dataUrl, blob });
+              } else {
+                reject(new Error('Failed to create blob'));
+              }
+            },
+            'image/jpeg',
+            0.85
+          );
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
+      try {
+        // Compress image
+        const { dataUrl, blob } = await compressImage(file);
+        
+        // Create a new File object from the compressed blob
+        const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
+        
+        setImageFile(compressedFile);
+        setImage(dataUrl);
         setMaskData(null);
         setResult(null);
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Failed to compress image:', err);
+        // Fallback to original file if compression fails
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImage(reader.result as string);
+          setMaskData(null);
+          setResult(null);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -271,6 +348,9 @@ function MaskCreatorContent() {
           <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
             Upload Image
           </h2>
+          <div className="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+            <strong>💡 Note:</strong> Images are compressed on upload (max 800px) for smooth drawing, then resized to 256x256 when saved for training.
+          </div>
           <input
             type="file"
             accept="image/*"

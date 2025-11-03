@@ -19,26 +19,50 @@ export async function POST(request: NextRequest) {
     const pythonFormData = new FormData();
     pythonFormData.append("file", file);
 
-    const response = await fetch(`${PYTHON_API_URL}/parking/segment`, {
-      method: "POST",
-      body: pythonFormData,
-    });
+    // Create an AbortController with a longer timeout (5 minutes for SAM processing)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
 
-    const data = await response.json();
+    try {
+      const response = await fetch(`${PYTHON_API_URL}/parking/segment`, {
+        method: "POST",
+        body: pythonFormData,
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      return NextResponse.json(
-        { success: false, error: data.error || "Segmentation failed" },
-        { status: response.status }
-      );
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return NextResponse.json(
+          { success: false, error: data.error || "Segmentation failed" },
+          { status: response.status }
+        );
+      }
+
+      return NextResponse.json(data);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        return NextResponse.json(
+          { success: false, error: "Request timed out. The SAM model processing takes several minutes. Please try again." },
+          { status: 504 }
+        );
+      }
+      throw fetchError; // Re-throw to outer catch
     }
-
-    return NextResponse.json(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error("API Error:", error);
+    
+    const errorMessage = error.name === 'AbortError' 
+      ? "Request timed out. The SAM model processing takes several minutes."
+      : error.message || "Internal server error";
+    
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
+      { success: false, error: errorMessage },
+      { status: error.name === 'AbortError' ? 504 : 500 }
     );
   }
 }

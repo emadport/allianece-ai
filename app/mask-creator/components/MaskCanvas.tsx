@@ -110,8 +110,39 @@ export default function MaskCanvas({ imageUrl, onMaskDrawn }: MaskCanvasProps) {
   const saveMask = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const maskDataUrl = canvas.toDataURL("image/png");
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Check if canvas has any drawings
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const hasDrawing = imageData.data.some((channel) => channel !== 0);
+
+    if (!hasDrawing) {
+      alert("⚠️ Please draw a mask on the image first!");
+      return;
+    }
+
+    // Create a new canvas with black background
+    const maskCanvas = document.createElement("canvas");
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+    const maskCtx = maskCanvas.getContext("2d");
+    if (!maskCtx) return;
+
+    // Fill with black background
+    maskCtx.fillStyle = "#000000";
+    maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+    // Draw the user's drawing on top (which should be white or colored)
+    maskCtx.drawImage(canvas, 0, 0);
+
+    // Convert to data URL
+    const maskDataUrl = maskCanvas.toDataURL("image/png");
     onMaskDrawn(maskDataUrl);
+
+    // Show success feedback
+    alert("✓ Mask saved! You can now train the model or run prediction.");
   };
 
   return (
