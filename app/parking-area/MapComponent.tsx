@@ -9,14 +9,21 @@ interface Polygon {
   area?: number;
 }
 
+interface GeoBounds {
+  northEast: { lat: number; lng: number };
+  southWest: { lat: number; lng: number };
+}
+
 interface MapComponentProps {
   imageUrl: string;
   polygons: Polygon[];
+  geoBounds?: GeoBounds | null;
 }
 
 export default function MapComponent({
   imageUrl,
   polygons,
+  geoBounds = null,
 }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -74,21 +81,22 @@ export default function MapComponent({
 
     // If map is already loaded, add content immediately
     if (map.loaded()) {
-      addParkingContent(map, imageUrl, polygons);
+      addParkingContent(map, imageUrl, polygons, geoBounds);
       isLoadedRef.current = true;
     } else {
       // Otherwise wait for map to load
       map.on("load", () => {
-        addParkingContent(map, imageUrl, polygons);
+        addParkingContent(map, imageUrl, polygons, geoBounds);
         isLoadedRef.current = true;
       });
     }
-  }, [imageUrl, polygons]);
+  }, [imageUrl, polygons, geoBounds]);
 
   function addParkingContent(
     map: maplibregl.Map,
     imageUrl: string,
-    polygons: Polygon[]
+    polygons: Polygon[],
+    geoBounds: GeoBounds | null
   ) {
     if (map.getSource("parking-image")) return;
 
@@ -101,16 +109,46 @@ export default function MapComponent({
       const imageWidth = img.width;
       const imageHeight = img.height;
 
-      // Add parking image to map
-      map.addSource("parking-image", {
-        type: "image",
-        url: imageUrl,
-        coordinates: [
+      let imageCoordinates: [
+        [number, number],
+        [number, number],
+        [number, number],
+        [number, number]
+      ];
+      let fitBounds: [[number, number], [number, number]];
+
+      if (geoBounds) {
+        // Use real-world coordinates when provided
+        console.log("Using real-world coordinates:", geoBounds);
+        imageCoordinates = [
+          [geoBounds.northEast.lng, geoBounds.northEast.lat], // top left (NE)
+          [geoBounds.southWest.lng, geoBounds.northEast.lat], // top right
+          [geoBounds.southWest.lng, geoBounds.southWest.lat], // bottom right (SW)
+          [geoBounds.northEast.lng, geoBounds.southWest.lat], // bottom left
+        ];
+        fitBounds = [
+          [geoBounds.southWest.lng, geoBounds.southWest.lat],
+          [geoBounds.northEast.lng, geoBounds.northEast.lat],
+        ];
+      } else {
+        // Use normalized coordinates as fallback
+        imageCoordinates = [
           [-1, 1], // top left
           [1, 1], // top right
           [1, -1], // bottom right
           [-1, -1], // bottom left
-        ],
+        ];
+        fitBounds = [
+          [-1, -1],
+          [1, 1],
+        ];
+      }
+
+      // Add parking image to map
+      map.addSource("parking-image", {
+        type: "image",
+        url: imageUrl,
+        coordinates: imageCoordinates,
       });
 
       // Add parking image layer
@@ -123,26 +161,36 @@ export default function MapComponent({
         },
       });
 
-      // Fit map to image bounds
-      map.fitBounds(
-        [
-          [-1, -1], // southwest
-          [1, 1], // northeast
-        ],
-        { padding: 50 }
-      );
+      // Fit map to bounds
+      map.fitBounds(fitBounds, { padding: 50 });
 
       // Add polygon layers for each parking space
       polygons.forEach((polygon, idx) => {
         const sourceId = `parking-polygon-${idx}`;
         const layerId = `parking-layer-${idx}`;
 
-        // Convert pixel coordinates to normalized map coordinates [-1, 1]
+        // Convert pixel coordinates to lat/lng or normalized coordinates
         const coordinates = polygon.points.map(([x, y]: [number, number]) => {
-          // Normalize pixel coordinates to [-1, 1] range
-          const normalizedX = (x / imageWidth) * 2 - 1;
-          const normalizedY = 1 - (y / imageHeight) * 2; // Flip Y axis
-          return [normalizedX, normalizedY];
+          if (geoBounds) {
+            // Convert pixel to real-world lat/lng
+            const normalizedX = x / imageWidth;
+            const normalizedY = y / imageHeight;
+
+            const lng =
+              geoBounds.southWest.lng +
+              (geoBounds.northEast.lng - geoBounds.southWest.lng) * normalizedX;
+            const lat =
+              geoBounds.southWest.lat +
+              (geoBounds.northEast.lat - geoBounds.southWest.lat) *
+                (1 - normalizedY);
+
+            return [lng, lat]; // [longitude, latitude] for GeoJSON
+          } else {
+            // Normalize pixel coordinates to [-1, 1] range
+            const normalizedX = (x / imageWidth) * 2 - 1;
+            const normalizedY = 1 - (y / imageHeight) * 2; // Flip Y axis
+            return [normalizedX, normalizedY];
+          }
         });
 
         // Close the polygon

@@ -72,5 +72,21 @@ The parking polygons are displayed on an interactive MapLibre GL map:
 
 - Uses OpenStreetMap tiles (no API key required)
 - Each parking space is a colored polygon
+- **Real-world coordinate support**: Map polygons to actual parking locations
 - Hover to see details
 - Zoom and pan to explore
+
+### How to Use Real-World Mapping
+
+1. Upload a parking lot image
+2. Detect parking spaces (polygons are created)
+3. Enter the geographic coordinates:
+   - **North-East Corner**: Latitude & Longitude of top-right corner
+   - **South-West Corner**: Latitude & Longitude of bottom-left corner
+4. Click "Map to Real World Location"
+5. See parking polygons overlaid on actual map location!
+
+**Example coordinates** (for testing):
+
+- NE: Latitude 40.7128, Longitude -74.0060 (NYC)
+- SW: Latitude 40.7080, Longitude -74.0120

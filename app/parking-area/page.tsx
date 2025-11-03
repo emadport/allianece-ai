@@ -21,6 +21,10 @@ export default function ParkingAreaDemo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [polygons, setPolygons] = useState<any[]>([]);
+  const [geoBounds, setGeoBounds] = useState<{
+    northEast: { lat: number; lng: number };
+    southWest: { lat: number; lng: number };
+  } | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -173,13 +177,108 @@ export default function ParkingAreaDemo() {
           </div>
         )}
 
+        {/* Geo Coordinate Selection */}
+        {polygons.length > 0 && preview && !geoBounds && (
+          <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              Set Parking Area Location on Map
+            </h3>
+            <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+              Enter the coordinates of the parking area corners to map polygons
+              to real-world locations
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">
+                  North-East Corner
+                </label>
+                <div className="grid gap-2 grid-cols-2">
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Latitude"
+                    id="ne-lat"
+                    className="rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  />
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Longitude"
+                    id="ne-lng"
+                    className="rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">
+                  South-West Corner
+                </label>
+                <div className="grid gap-2 grid-cols-2">
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Latitude"
+                    id="sw-lat"
+                    className="rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  />
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Longitude"
+                    id="sw-lng"
+                    className="rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  />
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const neLat = (
+                  document.getElementById("ne-lat") as HTMLInputElement
+                )?.value;
+                const neLng = (
+                  document.getElementById("ne-lng") as HTMLInputElement
+                )?.value;
+                const swLat = (
+                  document.getElementById("sw-lat") as HTMLInputElement
+                )?.value;
+                const swLng = (
+                  document.getElementById("sw-lng") as HTMLInputElement
+                )?.value;
+
+                if (neLat && neLng && swLat && swLng) {
+                  setGeoBounds({
+                    northEast: {
+                      lat: parseFloat(neLat),
+                      lng: parseFloat(neLng),
+                    },
+                    southWest: {
+                      lat: parseFloat(swLat),
+                      lng: parseFloat(swLng),
+                    },
+                  });
+                } else {
+                  alert("Please enter all coordinate values");
+                }
+              }}
+              className="mt-4 rounded-lg bg-blue-600 px-6 py-2 font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              Map to Real World Location
+            </button>
+          </div>
+        )}
+
         {/* Mapbox Visualization */}
-        {polygons.length > 0 && preview && (
+        {polygons.length > 0 && preview && geoBounds && (
           <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
             <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
               Parking Map Visualization
             </h3>
-            <MapComponent imageUrl={preview} polygons={polygons} />
+            <MapComponent
+              imageUrl={preview}
+              polygons={polygons}
+              geoBounds={geoBounds}
+            />
           </div>
         )}
       </div>
