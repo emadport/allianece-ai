@@ -9,7 +9,7 @@
     "lint": "eslint",
     "python:install": "cd backend-deploy && pip install -r requirements.txt",
     "python:server": "cd backend-deploy && python run_server.py",
-    "python:dev": "cd backend-deploy && python3 -m uvicorn server:app --reload --host 0.0.0.0 --port 8000",
+    "python:dev": "cd backend-deploy && cd alliance-backend && python3 -m uvicorn server:app --reload --host 0.0.0.0 --port 8000",
     "dev:all": "concurrently \"npm run dev\" --names \"frontend,backend\" --prefix-colors \"blue,green\""
   },
   "dependencies": {
