@@ -15,6 +15,13 @@ type ModelType = {
 
 const models: ModelType[] = [
   {
+    id: "classification",
+    name: "Classification & Prediction",
+    description:
+      "Upload files to classify or make predictions using advanced machine learning models",
+    icon: "🤖",
+  },
+  {
     id: "unet",
     name: "UNet",
     description:
@@ -91,7 +98,11 @@ export default function ModelsPage() {
               {models.map((model) => (
                 <Link
                   key={model.id}
-                  href={`/mask-creator?model=${model.id}`}
+                  href={
+                    model.id === "classification"
+                      ? "/classification"
+                      : `/mask-creator?model=${model.id}`
+                  }
                   className="group rounded-lg border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-400 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
                 >
                   <div className="flex items-start gap-4">
